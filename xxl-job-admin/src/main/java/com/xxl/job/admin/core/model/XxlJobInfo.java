@@ -10,7 +10,8 @@ import java.util.Date;
 public class XxlJobInfo {
 	
 	private int id;				// 主键ID
-	
+
+	private String appname;		// 执行期名称，如果该值存在，就忽略jobGroup
 	private int jobGroup;		// 执行器主键ID
 	private String jobDesc;
 	
@@ -49,6 +50,14 @@ public class XxlJobInfo {
 
 	public void setId(int id) {
 		this.id = id;
+	}
+
+	public String getAppname() {
+		return appname;
+	}
+
+	public void setAppname(String appname) {
+		this.appname = appname;
 	}
 
 	public int getJobGroup() {

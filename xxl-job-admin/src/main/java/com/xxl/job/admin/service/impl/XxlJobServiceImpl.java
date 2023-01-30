@@ -61,10 +61,20 @@ public class XxlJobServiceImpl implements XxlJobService {
 	public ReturnT<String> add(XxlJobInfo jobInfo) {
 
 		// valid base
-		XxlJobGroup group = xxlJobGroupDao.load(jobInfo.getJobGroup());
-		if (group == null) {
-			return new ReturnT<String>(ReturnT.FAIL_CODE, (I18nUtil.getString("system_please_choose")+I18nUtil.getString("jobinfo_field_jobgroup")) );
+		XxlJobGroup group;
+		if (jobInfo.getAppname() != null) {
+			group = xxlJobGroupDao.loadByAppname(jobInfo.getAppname());
+			if (group == null) {
+				return new ReturnT<String>(ReturnT.FAIL_CODE, (I18nUtil.getString("system_please_choose")+I18nUtil.getString("jobinfo_field_jobgroup")) );
+			}
+			jobInfo.setJobGroup(group.getId());
+		} else {
+			group = xxlJobGroupDao.load(jobInfo.getJobGroup());
+			if (group == null) {
+				return new ReturnT<String>(ReturnT.FAIL_CODE, (I18nUtil.getString("system_please_choose")+I18nUtil.getString("jobinfo_field_jobgroup")) );
+			}
 		}
+
 		if (jobInfo.getJobDesc()==null || jobInfo.getJobDesc().trim().length()==0) {
 			return new ReturnT<String>(ReturnT.FAIL_CODE, (I18nUtil.getString("system_please_input")+I18nUtil.getString("jobinfo_field_jobdesc")) );
 		}
@@ -144,6 +154,13 @@ public class XxlJobServiceImpl implements XxlJobService {
 			jobInfo.setChildJobId(temp);
 		}
 
+		// 按照国家更新cron表达式
+		if (ScheduleTypeEnum.CRON == scheduleTypeEnum) {
+			String scheduleConf = jobInfo.getScheduleConf();
+			String newScheduleConf = updateScheduleConfByCountry(scheduleConf);
+			jobInfo.setScheduleConf(newScheduleConf);
+		}
+
 		// add in db
 		jobInfo.setAddTime(new Date());
 		jobInfo.setUpdateTime(new Date());
@@ -155,6 +172,62 @@ public class XxlJobServiceImpl implements XxlJobService {
 
 		return new ReturnT<String>(String.valueOf(jobInfo.getId()));
 	}
+
+	private String updateScheduleConfByCountry(String cron) {
+		int hourDelta = getHourDeltaByContry();
+		List<String> scheduleConfList = new ArrayList<>(List.of(cron.split(" ")));
+		String hour = scheduleConfList.get(2);
+		String newHour = "";
+		if (Objects.equals(hour, "*")) {
+			return cron;
+		} else {
+			if (!(cron.contains(",") || cron.contains("-"))) {
+				int newHourTmp = Integer.parseInt(hour) + 5;
+				if (newHourTmp>=24) {
+					newHourTmp = newHourTmp - 24;
+				}
+				newHour = String.valueOf(newHourTmp);
+			} else if (cron.contains(",")) {
+				String[] hourList = hour.split(",");
+				List<String> newHourTmpList = new ArrayList<>();
+				for (String hourTmp :hourList) {
+					int newHourTmp = Integer.parseInt(hourTmp)+5;
+					if (newHourTmp>=24) {
+						newHourTmp = newHourTmp - 24;
+					}
+					newHourTmpList.add(String.valueOf(newHourTmp));
+				}
+				newHourTmpList.sort(new Comparator<String>() {
+					@Override
+					public int compare(String o1, String o2) {
+						if (Integer.parseInt(o1) < Integer.parseInt(o2)) {
+							return -1;
+						} else if(Integer.parseInt(o1) > Integer.parseInt(o2)){
+							return 1;
+						}
+						return 0;
+					}
+				});
+				newHour = String.join(",", newHourTmpList);
+			} else if (cron.contains("-")) {
+				String[] hourList = hour.split("-");
+				int hourStart = Integer.parseInt(hourList[0]);
+				int hourEnd = Integer.parseInt(hourList[1]);
+				hourStart = hourStart + 5;
+				hourEnd = hourEnd + 5;
+				if (hourStart >= 24) {
+					hourStart = hourStart - 24;
+				}
+				if (hourEnd >= 24) {
+					hourEnd = hourEnd - 24;
+				}
+				newHour = hourStart + "-" + hourEnd;
+			}
+		}
+		scheduleConfList.set(2, newHour);
+		return String.join(" ", scheduleConfList);
+	}
+
 
 	private boolean isNumeric(String str){
 		try {
@@ -281,6 +354,14 @@ public class XxlJobServiceImpl implements XxlJobService {
 		exists_jobInfo.setTriggerNextTime(nextTriggerTime);
 
 		exists_jobInfo.setUpdateTime(new Date());
+
+		// 按照国家更新cron表达式
+		if (ScheduleTypeEnum.CRON == scheduleTypeEnum) {
+			String scheduleConf = jobInfo.getScheduleConf();
+			String newScheduleConf = updateScheduleConfByCountry(scheduleConf);
+			exists_jobInfo.setScheduleConf(newScheduleConf);
+		}
+
         xxlJobInfoDao.update(exists_jobInfo);
 
 

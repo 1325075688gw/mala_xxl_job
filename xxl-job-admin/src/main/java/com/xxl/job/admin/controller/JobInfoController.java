@@ -1,5 +1,6 @@
 package com.xxl.job.admin.controller;
 
+import com.xxl.job.admin.controller.annotation.PermissionLimit;
 import com.xxl.job.admin.core.cron.CronExpression;
 import com.xxl.job.admin.core.exception.XxlJobException;
 import com.xxl.job.admin.core.model.XxlJobGroup;
@@ -112,7 +113,14 @@ public class JobInfoController {
 	public ReturnT<String> add(XxlJobInfo jobInfo) {
 		return xxlJobService.add(jobInfo);
 	}
-	
+
+	@RequestMapping("/add_by_inner")
+	@ResponseBody
+	@PermissionLimit(limit = false)
+	public ReturnT<String> addByInner(XxlJobInfo jobInfo) {
+		return xxlJobService.add(jobInfo);
+	}
+
 	@RequestMapping("/update")
 	@ResponseBody
 	public ReturnT<String> update(XxlJobInfo jobInfo) {
